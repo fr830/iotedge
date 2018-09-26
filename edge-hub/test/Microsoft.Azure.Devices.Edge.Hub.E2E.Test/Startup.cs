@@ -111,7 +111,9 @@ namespace Microsoft.Azure.Devices.Edge.Hub.E2E.Test
                     versionInfo,
                     Option.Some(UpstreamProtocol.Amqp),
                     TimeSpan.FromSeconds(5),
-                    101));
+                    101,
+                    TimeSpan.FromSeconds(3600),
+                    true));
 
             builder.RegisterModule(new HttpModule());
             builder.RegisterModule(new MqttModule(mqttSettingsConfiguration.Object, topics, ProtocolHeadFixtureCache.X509Certificate, false, false, string.Empty, false));
@@ -125,7 +127,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.E2E.Test
 
             app.UseWebSockets();
             app.UseWebSocketHandlingMiddleware(webSocketListenerRegistry);
-            app.UseAuthenticationMiddleware(this.iothubHostname);
+            app.UseAuthenticationMiddleware(this.iothubHostname, this.deviceId);
             app.UseMvc();
         }
 
