@@ -28,6 +28,7 @@ extern crate url;
 #[cfg(test)]
 #[macro_use]
 extern crate serde_json;
+#[cfg(unix)]
 #[cfg(test)]
 extern crate tempfile;
 #[cfg(test)]

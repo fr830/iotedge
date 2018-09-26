@@ -34,6 +34,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_json;
 extern crate systemd;
+#[cfg(unix)]
 #[cfg(test)]
 extern crate tempfile;
 extern crate tokio;
