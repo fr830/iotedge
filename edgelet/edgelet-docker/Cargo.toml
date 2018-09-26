@@ -23,9 +23,11 @@ edgelet-http = { path = "../edgelet-http" }
 edgelet-utils = { path = "../edgelet-utils" }
 
 [dev_dependencies]
-tempfile = "3"
 time = "0.1"
 tokio = "0.1.8"
 typed-headers = "0.1"
 
 edgelet-test-utils = { path = "../edgelet-test-utils" }
+
+[target.'cfg(unix)'.dev_dependencies]
+tempfile = "3"
