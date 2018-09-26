@@ -10,32 +10,31 @@
 
 use std::borrow::Borrow;
 use std::borrow::Cow;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use futures;
 use futures::{Future, Stream};
 use hyper;
 use serde_json;
+use typed_headers::{self, http, mime, HeaderMapExt};
 
-use hyper::header::UserAgent;
-
-use super::{configuration, Error};
+use super::{super::utils::UserAgent, configuration, Error};
 
 use models::ImageDeleteResponseItem;
 
-pub struct ImageApiClient<C: hyper::client::Connect> {
-    configuration: Rc<configuration::Configuration<C>>,
+pub struct ImageApiClient<C: hyper::client::connect::Connect> {
+    configuration: Arc<configuration::Configuration<C>>,
 }
 
-impl<C: hyper::client::Connect> ImageApiClient<C> {
-    pub fn new(configuration: Rc<configuration::Configuration<C>>) -> ImageApiClient<C> {
+impl<C: hyper::client::connect::Connect> ImageApiClient<C> {
+    pub fn new(configuration: Arc<configuration::Configuration<C>>) -> ImageApiClient<C> {
         ImageApiClient {
             configuration: configuration,
         }
     }
 }
 
-pub trait ImageApi {
+pub trait ImageApi: Send + Sync {
     fn build_prune(
         &self,
     ) -> Box<Future<Item = ::models::InlineResponse2006, Error = Error<serde_json::Value>>>;
@@ -87,7 +86,7 @@ pub trait ImageApi {
         input_image: &str,
         x_registry_auth: &str,
         platform: &str,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send>;
     fn image_delete(
         &self,
         name: &str,
@@ -145,13 +144,18 @@ pub trait ImageApi {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>>;
 }
 
-impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
+impl<C> ImageApi for ImageApiClient<C>
+where
+    C: hyper::client::connect::Connect + 'static,
+    <C as hyper::client::connect::Connect>::Transport: 'static,
+    <C as hyper::client::connect::Connect>::Future: 'static,
+{
     fn build_prune(
         &self,
     ) -> Box<Future<Item = ::models::InlineResponse2006, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let uri_str = format!("/build/prune");
 
@@ -160,11 +164,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -174,9 +180,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -223,7 +228,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("dockerfile", &dockerfile.to_string())
@@ -256,24 +261,28 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let serialized = serde_json::to_string(&input_stream).unwrap();
+        let serialized_len = serialized.len();
+
+        let mut req = hyper::Request::new(hyper::Body::from(serialized));
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         {
             let headers = req.headers_mut();
-            headers.set_raw("Content-type", content_type);
-            headers.set_raw("X-Registry-Config", x_registry_config);
+            headers.append("Content-type", content_type.parse().unwrap());
+            headers.append("X-Registry-Config", x_registry_config.parse().unwrap());
         }
 
-        let serialized = serde_json::to_string(&input_stream).unwrap();
-        req.headers_mut().set(hyper::header::ContentType::json());
         req.headers_mut()
-            .set(hyper::header::ContentLength(serialized.len() as u64));
-        req.set_body(serialized);
+            .typed_insert(&typed_headers::ContentType(mime::APPLICATION_JSON));
+        req.headers_mut()
+            .typed_insert(&typed_headers::ContentLength(serialized_len as u64));
 
         // send request
         Box::new(
@@ -282,9 +291,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -310,7 +318,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = ::models::IdResponse, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("container", &container.to_string())
@@ -328,18 +336,22 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let serialized = serde_json::to_string(&container_config).unwrap();
+        let serialized_len = serialized.len();
+
+        let mut req = hyper::Request::new(hyper::Body::from(serialized));
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
-        let serialized = serde_json::to_string(&container_config).unwrap();
-        req.headers_mut().set(hyper::header::ContentType::json());
         req.headers_mut()
-            .set(hyper::header::ContentLength(serialized.len() as u64));
-        req.set_body(serialized);
+            .typed_insert(&typed_headers::ContentType(mime::APPLICATION_JSON));
+        req.headers_mut()
+            .typed_insert(&typed_headers::ContentLength(serialized_len as u64));
 
         // send request
         Box::new(
@@ -348,9 +360,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -375,10 +386,10 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         input_image: &str,
         x_registry_auth: &str,
         platform: &str,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("fromImage", &from_image.to_string())
@@ -394,23 +405,27 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let serialized = serde_json::to_string(&input_image).unwrap();
+        let serialized_len = serialized.len();
+
+        let mut req = hyper::Request::new(hyper::Body::from(serialized));
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         {
             let headers = req.headers_mut();
-            headers.set_raw("X-Registry-Auth", x_registry_auth);
+            headers.append("X-Registry-Auth", x_registry_auth.parse().unwrap());
         }
 
-        let serialized = serde_json::to_string(&input_image).unwrap();
-        req.headers_mut().set(hyper::header::ContentType::json());
         req.headers_mut()
-            .set(hyper::header::ContentLength(serialized.len() as u64));
-        req.set_body(serialized);
+            .typed_insert(&typed_headers::ContentType(mime::APPLICATION_JSON));
+        req.headers_mut()
+            .typed_insert(&typed_headers::ContentLength(serialized_len as u64));
 
         // send request
         Box::new(
@@ -419,9 +434,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -442,7 +456,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = Vec<ImageDeleteResponseItem>, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Delete;
+        let method = hyper::Method::DELETE;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("force", &force.to_string())
@@ -455,11 +469,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -469,9 +485,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -496,7 +511,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = Vec<u8>, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let uri_str = format!("/images/{name}/get", name = name);
 
@@ -505,11 +520,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -519,9 +536,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -543,7 +559,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = Vec<u8>, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("names", &names.join(",").to_string())
@@ -555,11 +571,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -569,9 +587,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -594,7 +611,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let uri_str = format!("/images/{name}/history", name = name);
 
@@ -603,11 +620,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -617,9 +636,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -642,7 +660,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = ::models::Image, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let uri_str = format!("/images/{name}/json", name = name);
 
@@ -651,11 +669,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -665,9 +685,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -691,7 +710,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = Vec<::models::ImageSummary>, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("all", &all.to_string())
@@ -705,11 +724,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -719,9 +740,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -745,7 +765,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("quiet", &quiet.to_string())
@@ -757,18 +777,22 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let serialized = serde_json::to_string(&images_tarball).unwrap();
+        let serialized_len = serialized.len();
+
+        let mut req = hyper::Request::new(hyper::Body::from(serialized));
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
-        let serialized = serde_json::to_string(&images_tarball).unwrap();
-        req.headers_mut().set(hyper::header::ContentType::json());
         req.headers_mut()
-            .set(hyper::header::ContentLength(serialized.len() as u64));
-        req.set_body(serialized);
+            .typed_insert(&typed_headers::ContentType(mime::APPLICATION_JSON));
+        req.headers_mut()
+            .typed_insert(&typed_headers::ContentLength(serialized_len as u64));
 
         // send request
         Box::new(
@@ -777,9 +801,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -798,7 +821,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = ::models::InlineResponse2009, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("filters", &filters.to_string())
@@ -810,11 +833,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -824,9 +849,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -851,7 +875,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("tag", &tag.to_string())
@@ -863,16 +887,18 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         {
             let headers = req.headers_mut();
-            headers.set_raw("X-Registry-Auth", x_registry_auth);
+            headers.append("X-Registry-Auth", x_registry_auth.parse().unwrap());
         }
 
         // send request
@@ -882,9 +908,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -906,7 +931,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("term", &term.to_string())
@@ -920,11 +945,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -934,9 +961,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -961,7 +987,7 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("repo", &repo.to_string())
@@ -974,11 +1000,13 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -988,9 +1016,8 @@ impl<C: hyper::client::Connect> ImageApi for ImageApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {

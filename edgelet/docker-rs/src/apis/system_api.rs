@@ -10,30 +10,29 @@
 
 use std::borrow::Borrow;
 use std::borrow::Cow;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use futures;
 use futures::{Future, Stream};
 use hyper;
 use serde_json;
+use typed_headers::{self, http, mime, HeaderMapExt};
 
-use hyper::header::UserAgent;
+use super::{super::utils::UserAgent, configuration, Error};
 
-use super::{configuration, Error};
-
-pub struct SystemApiClient<C: hyper::client::Connect> {
-    configuration: Rc<configuration::Configuration<C>>,
+pub struct SystemApiClient<C: hyper::client::connect::Connect> {
+    configuration: Arc<configuration::Configuration<C>>,
 }
 
-impl<C: hyper::client::Connect> SystemApiClient<C> {
-    pub fn new(configuration: Rc<configuration::Configuration<C>>) -> SystemApiClient<C> {
+impl<C: hyper::client::connect::Connect> SystemApiClient<C> {
+    pub fn new(configuration: Arc<configuration::Configuration<C>>) -> SystemApiClient<C> {
         SystemApiClient {
             configuration: configuration,
         }
     }
 }
 
-pub trait SystemApi {
+pub trait SystemApi: Send + Sync {
     fn system_auth(
         &self,
         auth_config: ::models::AuthConfig,
@@ -49,21 +48,26 @@ pub trait SystemApi {
     ) -> Box<Future<Item = ::models::InlineResponse20012, Error = Error<serde_json::Value>>>;
     fn system_info(
         &self,
-    ) -> Box<Future<Item = ::models::SystemInfo, Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = ::models::SystemInfo, Error = Error<serde_json::Value>> + Send>;
     fn system_ping(&self) -> Box<Future<Item = String, Error = Error<serde_json::Value>>>;
     fn system_version(
         &self,
     ) -> Box<Future<Item = ::models::InlineResponse20011, Error = Error<serde_json::Value>>>;
 }
 
-impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
+impl<C> SystemApi for SystemApiClient<C>
+where
+    C: hyper::client::connect::Connect + 'static,
+    <C as hyper::client::connect::Connect>::Transport: 'static,
+    <C as hyper::client::connect::Connect>::Future: 'static,
+{
     fn system_auth(
         &self,
         auth_config: ::models::AuthConfig,
     ) -> Box<Future<Item = ::models::InlineResponse20010, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let uri_str = format!("/auth");
 
@@ -72,18 +76,22 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let serialized = serde_json::to_string(&auth_config).unwrap();
+        let serialized_len = serialized.len();
+
+        let mut req = hyper::Request::new(hyper::Body::from(serialized));
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
-        let serialized = serde_json::to_string(&auth_config).unwrap();
-        req.headers_mut().set(hyper::header::ContentType::json());
         req.headers_mut()
-            .set(hyper::header::ContentLength(serialized.len() as u64));
-        req.set_body(serialized);
+            .typed_insert(&typed_headers::ContentType(mime::APPLICATION_JSON));
+        req.headers_mut()
+            .typed_insert(&typed_headers::ContentLength(serialized_len as u64));
 
         // send request
         Box::new(
@@ -92,9 +100,8 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -116,7 +123,7 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
     ) -> Box<Future<Item = ::models::InlineResponse20013, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let uri_str = format!("/system/df");
 
@@ -125,11 +132,13 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -139,9 +148,8 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -166,7 +174,7 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
     ) -> Box<Future<Item = ::models::InlineResponse20012, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("since", &since.to_string())
@@ -180,11 +188,13 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -194,9 +204,8 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -215,10 +224,10 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
 
     fn system_info(
         &self,
-    ) -> Box<Future<Item = ::models::SystemInfo, Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = ::models::SystemInfo, Error = Error<serde_json::Value>> + Send> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let uri_str = format!("/info");
 
@@ -227,11 +236,13 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -241,9 +252,8 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -262,7 +272,7 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
     fn system_ping(&self) -> Box<Future<Item = String, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let uri_str = format!("/_ping");
 
@@ -271,11 +281,13 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -285,9 +297,8 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -308,7 +319,7 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
     ) -> Box<Future<Item = ::models::InlineResponse20011, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let uri_str = format!("/version");
 
@@ -317,11 +328,13 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -331,9 +344,8 @@ impl<C: hyper::client::Connect> SystemApi for SystemApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {

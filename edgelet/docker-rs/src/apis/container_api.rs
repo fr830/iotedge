@@ -10,30 +10,29 @@
 
 use std::borrow::Borrow;
 use std::borrow::Cow;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use futures;
 use futures::{Future, Stream};
 use hyper;
 use serde_json;
+use typed_headers::{self, http, mime, HeaderMapExt};
 
-use hyper::header::UserAgent;
+use super::{super::utils::UserAgent, configuration, Error};
 
-use super::{configuration, Error};
-
-pub struct ContainerApiClient<C: hyper::client::Connect> {
-    configuration: Rc<configuration::Configuration<C>>,
+pub struct ContainerApiClient<C: hyper::client::connect::Connect> {
+    configuration: Arc<configuration::Configuration<C>>,
 }
 
-impl<C: hyper::client::Connect> ContainerApiClient<C> {
-    pub fn new(configuration: Rc<configuration::Configuration<C>>) -> ContainerApiClient<C> {
+impl<C: hyper::client::connect::Connect> ContainerApiClient<C> {
+    pub fn new(configuration: Arc<configuration::Configuration<C>>) -> ContainerApiClient<C> {
         ContainerApiClient {
             configuration: configuration,
         }
     }
 }
 
-pub trait ContainerApi {
+pub trait ContainerApi: Send + Sync {
     fn container_archive(
         &self,
         id: &str,
@@ -72,14 +71,14 @@ pub trait ContainerApi {
         &self,
         body: ::models::ContainerCreateBody,
         name: &str,
-    ) -> Box<Future<Item = ::models::InlineResponse201, Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = ::models::InlineResponse201, Error = Error<serde_json::Value>> + Send>;
     fn container_delete(
         &self,
         id: &str,
         v: bool,
         force: bool,
         link: bool,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send>;
     fn container_export(
         &self,
         id: &str,
@@ -88,7 +87,7 @@ pub trait ContainerApi {
         &self,
         id: &str,
         size: bool,
-    ) -> Box<Future<Item = ::models::InlineResponse200, Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = ::models::InlineResponse200, Error = Error<serde_json::Value>> + Send>;
     fn container_kill(
         &self,
         id: &str,
@@ -100,7 +99,7 @@ pub trait ContainerApi {
         limit: i32,
         size: bool,
         filters: &str,
-    ) -> Box<Future<Item = Vec<::models::ContainerSummary>, Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = Vec<::models::ContainerSummary>, Error = Error<serde_json::Value>> + Send>;
     fn container_logs(
         &self,
         id: &str,
@@ -110,7 +109,7 @@ pub trait ContainerApi {
         since: i32,
         timestamps: bool,
         tail: &str,
-    ) -> Box<Future<Item = hyper::Body, Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = hyper::Body, Error = Error<serde_json::Value>> + Send>;
     fn container_pause(&self, id: &str)
         -> Box<Future<Item = (), Error = Error<serde_json::Value>>>;
     fn container_prune(
@@ -132,12 +131,12 @@ pub trait ContainerApi {
         &self,
         id: &str,
         t: i32,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send>;
     fn container_start(
         &self,
         id: &str,
         detach_keys: &str,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send>;
     fn container_stats(
         &self,
         id: &str,
@@ -147,7 +146,7 @@ pub trait ContainerApi {
         &self,
         id: &str,
         t: i32,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>>;
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send>;
     fn container_top(
         &self,
         id: &str,
@@ -176,7 +175,12 @@ pub trait ContainerApi {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>>;
 }
 
-impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
+impl<C> ContainerApi for ContainerApiClient<C>
+where
+    C: hyper::client::connect::Connect + 'static,
+    <C as hyper::client::connect::Connect>::Transport: 'static,
+    <C as hyper::client::connect::Connect>::Future: 'static,
+{
     fn container_archive(
         &self,
         id: &str,
@@ -184,7 +188,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("path", &path.to_string())
@@ -196,11 +200,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -210,9 +216,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -232,7 +237,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Head;
+        let method = hyper::Method::HEAD;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("path", &path.to_string())
@@ -244,11 +249,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -258,9 +265,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -285,7 +291,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("detachKeys", &detach_keys.to_string())
@@ -302,11 +308,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -316,9 +324,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -343,7 +350,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("detachKeys", &detach_keys.to_string())
@@ -360,11 +367,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -374,9 +383,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -396,7 +404,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let uri_str = format!("/containers/{id}/changes", id = id);
 
@@ -405,11 +413,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -419,9 +429,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -442,10 +451,11 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         &self,
         body: ::models::ContainerCreateBody,
         name: &str,
-    ) -> Box<Future<Item = ::models::InlineResponse201, Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = ::models::InlineResponse201, Error = Error<serde_json::Value>> + Send>
+    {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("name", &name.to_string())
@@ -457,18 +467,22 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let serialized = serde_json::to_string(&body).unwrap();
+        let serialized_len = serialized.len();
+
+        let mut req = hyper::Request::new(hyper::Body::from(serialized));
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
-        let serialized = serde_json::to_string(&body).unwrap();
-        req.headers_mut().set(hyper::header::ContentType::json());
         req.headers_mut()
-            .set(hyper::header::ContentLength(serialized.len() as u64));
-        req.set_body(serialized);
+            .typed_insert(&typed_headers::ContentType(mime::APPLICATION_JSON));
+        req.headers_mut()
+            .typed_insert(&typed_headers::ContentLength(serialized_len as u64));
 
         // send request
         Box::new(
@@ -477,9 +491,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -502,10 +515,10 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         v: bool,
         force: bool,
         link: bool,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Delete;
+        let method = hyper::Method::DELETE;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("v", &v.to_string())
@@ -519,11 +532,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -533,9 +548,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -554,7 +568,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let uri_str = format!("/containers/{id}/export", id = id);
 
@@ -563,11 +577,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -577,9 +593,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -596,10 +611,11 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         &self,
         id: &str,
         size: bool,
-    ) -> Box<Future<Item = ::models::InlineResponse200, Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = ::models::InlineResponse200, Error = Error<serde_json::Value>> + Send>
+    {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("size", &size.to_string())
@@ -611,11 +627,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -625,9 +643,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -651,7 +668,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("signal", &signal.to_string())
@@ -663,11 +680,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -677,9 +696,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -698,10 +716,11 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         limit: i32,
         size: bool,
         filters: &str,
-    ) -> Box<Future<Item = Vec<::models::ContainerSummary>, Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = Vec<::models::ContainerSummary>, Error = Error<serde_json::Value>> + Send>
+    {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("all", &all.to_string())
@@ -716,11 +735,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -730,9 +751,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -758,10 +778,10 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         since: i32,
         timestamps: bool,
         tail: &str,
-    ) -> Box<Future<Item = hyper::Body, Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = hyper::Body, Error = Error<serde_json::Value>> + Send> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("follow", &follow.to_string())
@@ -778,11 +798,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -792,9 +814,9 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
                     if status.is_success() {
-                        Ok(resp.body())
+                        Ok(body)
                     } else {
                         let b: &[u8] = &[];
                         Err(Error::from((status, b)))
@@ -809,7 +831,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let uri_str = format!("/containers/{id}/pause", id = id);
 
@@ -818,11 +840,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -832,9 +856,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -853,7 +876,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = ::models::InlineResponse2005, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("filters", &filters.to_string())
@@ -865,11 +888,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -879,9 +904,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -905,7 +929,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("name", &name.to_string())
@@ -917,11 +941,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -931,9 +957,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -954,7 +979,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("h", &h.to_string())
@@ -967,11 +992,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -981,9 +1008,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -1000,10 +1026,10 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         &self,
         id: &str,
         t: i32,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("t", &t.to_string())
@@ -1015,11 +1041,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -1029,9 +1057,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -1048,10 +1075,10 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         &self,
         id: &str,
         detach_keys: &str,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("detachKeys", &detach_keys.to_string())
@@ -1063,11 +1090,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -1077,9 +1106,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -1099,7 +1127,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = serde_json::Value, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("stream", &stream.to_string())
@@ -1111,11 +1139,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -1125,9 +1155,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -1147,10 +1176,10 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         &self,
         id: &str,
         t: i32,
-    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
+    ) -> Box<Future<Item = (), Error = Error<serde_json::Value>> + Send> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("t", &t.to_string())
@@ -1162,11 +1191,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -1176,9 +1207,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -1198,7 +1228,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = ::models::InlineResponse2001, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Get;
+        let method = hyper::Method::GET;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("ps_args", &ps_args.to_string())
@@ -1210,11 +1240,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -1224,9 +1256,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -1249,7 +1280,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let uri_str = format!("/containers/{id}/unpause", id = id);
 
@@ -1258,11 +1289,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -1272,9 +1305,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -1294,7 +1326,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = ::models::InlineResponse2003, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let uri_str = format!("/containers/{id}/update", id = id);
 
@@ -1303,18 +1335,22 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let serialized = serde_json::to_string(&update).unwrap();
+        let serialized_len = serialized.len();
+
+        let mut req = hyper::Request::new(hyper::Body::from(serialized));
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
-        let serialized = serde_json::to_string(&update).unwrap();
-        req.headers_mut().set(hyper::header::ContentType::json());
         req.headers_mut()
-            .set(hyper::header::ContentLength(serialized.len() as u64));
-        req.set_body(serialized);
+            .typed_insert(&typed_headers::ContentType(mime::APPLICATION_JSON));
+        req.headers_mut()
+            .typed_insert(&typed_headers::ContentLength(serialized_len as u64));
 
         // send request
         Box::new(
@@ -1323,9 +1359,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -1349,7 +1384,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = ::models::InlineResponse2004, Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Post;
+        let method = hyper::Method::POST;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("condition", &condition.to_string())
@@ -1361,11 +1396,13 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let mut req = hyper::Request::new(hyper::Body::empty());
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
         // send request
@@ -1375,9 +1412,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {
@@ -1403,7 +1439,7 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
     ) -> Box<Future<Item = (), Error = Error<serde_json::Value>>> {
         let configuration: &configuration::Configuration<C> = self.configuration.borrow();
 
-        let method = hyper::Method::Put;
+        let method = hyper::Method::PUT;
 
         let query = ::url::form_urlencoded::Serializer::new(String::new())
             .append_pair("path", &path.to_string())
@@ -1418,18 +1454,22 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
         // if let Err(e) = uri {
         //     return Box::new(futures::future::err(e));
         // }
-        let mut req = hyper::Request::new(method, uri.unwrap());
+        let serialized = serde_json::to_string(&input_stream).unwrap();
+        let serialized_len = serialized.len();
+
+        let mut req = hyper::Request::new(hyper::Body::from(serialized));
+        *req.method_mut() = method;
+        *req.uri_mut() = uri.unwrap();
 
         if let Some(ref user_agent) = configuration.user_agent {
             req.headers_mut()
-                .set(UserAgent::new(Cow::Owned(user_agent.clone())));
+                .append(http::header::USER_AGENT, user_agent.parse().unwrap());
         }
 
-        let serialized = serde_json::to_string(&input_stream).unwrap();
-        req.headers_mut().set(hyper::header::ContentType::json());
         req.headers_mut()
-            .set(hyper::header::ContentLength(serialized.len() as u64));
-        req.set_body(serialized);
+            .typed_insert(&typed_headers::ContentType(mime::APPLICATION_JSON));
+        req.headers_mut()
+            .typed_insert(&typed_headers::ContentLength(serialized_len as u64));
 
         // send request
         Box::new(
@@ -1438,9 +1478,8 @@ impl<C: hyper::client::Connect> ContainerApi for ContainerApiClient<C> {
                 .request(req)
                 .map_err(|e| Error::from(e))
                 .and_then(|resp| {
-                    let status = resp.status();
-                    resp.body()
-                        .concat2()
+                    let (http::response::Parts { status, .. }, body) = resp.into_parts();
+                    body.concat2()
                         .and_then(move |body| Ok((status, body)))
                         .map_err(|e| Error::from(e))
                 }).and_then(|(status, body)| {

@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
-#![deny(warnings)]
+#![deny(unused_extern_crates, warnings)]
 
 #[cfg(test)]
 extern crate base64;
@@ -15,8 +15,6 @@ extern crate hmac;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
-extern crate regex;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
