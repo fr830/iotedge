@@ -49,7 +49,13 @@ pub struct DockerModuleRuntime {
 impl DockerModuleRuntime {
     pub fn new(docker_url: &Url) -> Result<DockerModuleRuntime> {
         // build the hyper client
-        let client = Client::builder().build(UrlConnector::new(docker_url)?);
+        let client = Client::builder()
+            // Default is true, which means hyper::Client pools and reuses connections,
+            // but this causes https://github.com/hyperium/hyper/issues/1660
+            // Unlike the minimal repro in that issue though, downgrading hyper to 0.12.6 does not work either,
+            // so something else is wrong.
+            .keep_alive(false)
+            .build(UrlConnector::new(docker_url)?);
 
         // extract base path - the bit that comes after the scheme
         let base_path = get_base_path(docker_url);
