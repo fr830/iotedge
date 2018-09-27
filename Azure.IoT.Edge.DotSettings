@@ -749,9 +749,12 @@
 	<s:Boolean x:Key="/Default/CodeStyle/CSharpUsing/KeepImports/=System_002ECollections_002EGeneric/@EntryIndexRemoved">True</s:Boolean>
 	<s:String x:Key="/Default/CodeStyle/CSharpUsing/KeepImports/=System_002ELinq/@EntryIndexedValue"></s:String>
 	<s:Boolean x:Key="/Default/CodeStyle/CSharpUsing/KeepImports/=System_002ELinq/@EntryIndexRemoved">True</s:Boolean>
-	<s:String x:Key="/Default/CodeStyle/CSharpUsing/MandatoryImports/=System/@EntryIndexedValue">System</s:String>
-	<s:String x:Key="/Default/CodeStyle/CSharpUsing/MandatoryImports/=System_002ECollections_002EGeneric/@EntryIndexedValue">System.Collections.Generic</s:String>
-	<s:String x:Key="/Default/CodeStyle/CSharpUsing/MandatoryImports/=System_002ELinq/@EntryIndexedValue">System.Linq</s:String>
+	<s:String x:Key="/Default/CodeStyle/CSharpUsing/MandatoryImports/=System/@EntryIndexedValue"></s:String>
+	<s:Boolean x:Key="/Default/CodeStyle/CSharpUsing/MandatoryImports/=System/@EntryIndexRemoved">True</s:Boolean>
+	<s:String x:Key="/Default/CodeStyle/CSharpUsing/MandatoryImports/=System_002ECollections_002EGeneric/@EntryIndexedValue"></s:String>
+	<s:Boolean x:Key="/Default/CodeStyle/CSharpUsing/MandatoryImports/=System_002ECollections_002EGeneric/@EntryIndexRemoved">True</s:Boolean>
+	<s:String x:Key="/Default/CodeStyle/CSharpUsing/MandatoryImports/=System_002ELinq/@EntryIndexedValue"></s:String>
+	<s:Boolean x:Key="/Default/CodeStyle/CSharpUsing/MandatoryImports/=System_002ELinq/@EntryIndexRemoved">True</s:Boolean>
 	<s:Boolean x:Key="/Default/CodeStyle/CSharpUsing/QualifiedUsingAtNestedScope/@EntryValue">True</s:Boolean>
 	<s:String x:Key="/Default/CodeStyle/CSharpVarKeywordUsage/ForBuiltInTypes/@EntryValue">UseExplicitType</s:String>
 	<s:String x:Key="/Default/CodeStyle/CSharpVarKeywordUsage/ForOtherTypes/@EntryValue">UseVarWhenEvident</s:String>
@@ -846,59 +849,6 @@
 	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/QuickList/=32F5B2BD4CFE0E42ADE73B7FB68EBDD0/Entry/=DCBA7F2C59E2D340934689277C463FDC/Position/@EntryValue">5</s:Int64>
 	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/QuickList/=F0CA621CDF5AB24282D8CDC11C520997/Entry/=7B10AC30B0320A4F95A3763001E1DBF6/Position/@EntryValue">0</s:Int64>
 	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/QuickList/=F0CA621CDF5AB24282D8CDC11C520997/Entry/=9BB83ED0FF792E47BAAB217C25589C77/Position/@EntryValue">0</s:Int64>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/@KeyIndexDefined">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Applicability/=Live/@EntryIndexedValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Categories/=Modeling/@EntryIndexedValue">Modeling</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Description/@EntryValue">Creates a ConditionalBehavioralComponent class.</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Field/=Entity/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Field/=Entity/Expression/@EntryValue">list("Product")</s:String>
-	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Field/=Entity/Order/@EntryValue">1</s:Int64>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Field/=guid/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Field/=guid/Expression/@EntryValue">guid()</s:String>
-	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Field/=guid/Order/@EntryValue">2</s:Int64>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Field/=Name/@KeyIndexDefined">True</s:Boolean>
-	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Field/=Name/Order/@EntryValue">0</s:Int64>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Reformat/@EntryValue">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Scope/=558F05AA0DE96347816FF785232CFB2A/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Scope/=558F05AA0DE96347816FF785232CFB2A/CustomProperties/=minimumLanguageVersion/@EntryIndexedValue">4.0</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Scope/=558F05AA0DE96347816FF785232CFB2A/Type/@EntryValue">InCSharpTypeAndNamespace</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Shortcut/@EntryValue">cbc</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/ShortenQualifiedReferences/@EntryValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=18CEBF0E6783E445B3216BDCA1944B4B/Text/@EntryValue">[System.Serializable]&#xD;
-[Microsoft.Commerce.Management.TypeIdentity("$guid$")]&#xD;
-public class $Name$BehavioralComponent : ConditionalBehavioralComponent, IBehavioralComponent&lt;$Entity$ReferenceBuilder&gt;&#xD;
-{&#xD;
-    public void Apply($Entity$ReferenceBuilder builder)&#xD;
-    {&#xD;
-    }&#xD;
-}&#xD;
-</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/@KeyIndexDefined">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Applicability/=Live/@EntryIndexedValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Categories/=Type_0020Registry/@EntryIndexedValue">Type Registry</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Description/@EntryValue">Insert a TypeIdentityAttribute</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Field/=GUID/@KeyIndexDefined">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Field/=guid/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Field/=GUID/Expression/@EntryValue">guid()</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Field/=guid/Expression/@EntryValue">guid()</s:String>
-	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Field/=GUID/Order/@EntryValue">0</s:Int64>
-	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Field/=guid/Order/@EntryValue">0</s:Int64>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Reformat/@EntryValue">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Scope/=558F05AA0DE96347816FF785232CFB2A/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Scope/=558F05AA0DE96347816FF785232CFB2A/CustomProperties/=minimumLanguageVersion/@EntryIndexedValue">2.0</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Scope/=558F05AA0DE96347816FF785232CFB2A/Type/@EntryValue">InCSharpTypeAndNamespace</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Scope/=C3001E7C0DA78E4487072B7E050D86C5/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Scope/=C3001E7C0DA78E4487072B7E050D86C5/CustomProperties/=minimumLanguageVersion/@EntryIndexedValue">2.0</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Scope/=C3001E7C0DA78E4487072B7E050D86C5/Type/@EntryValue">InCSharpFile</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Shortcut/@EntryValue">tia</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/ShortenQualifiedReferences/@EntryValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=45288D860D4F2D4FBD9C5FB27178DF3C/Text/@EntryValue">[System.Serializable]&#xD;
-[Microsoft.Commerce.Management.TypeIdentity("$guid$")]</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/@KeyIndexDefined">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/Applicability/=Live/@EntryIndexedValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/Categories/=Modeling/@EntryIndexedValue">Modeling</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/Description/@EntryValue">Adds a CancellationToken method argument.</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/Reformat/@EntryValue">True</s:Boolean>
 	
 	
 	
@@ -908,120 +858,78 @@ public class $Name$BehavioralComponent : ConditionalBehavioralComponent, IBehavi
 	
 	
 	
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/Scope/=C3001E7C0DA78E4487072B7E050D86C5/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/Scope/=C3001E7C0DA78E4487072B7E050D86C5/CustomProperties/=minimumLanguageVersion/@EntryIndexedValue">4.0</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/Scope/=C3001E7C0DA78E4487072B7E050D86C5/Type/@EntryValue">InCSharpFile</s:String>
 	
 	
 	
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/Shortcut/@EntryValue">ct</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/ShortenQualifiedReferences/@EntryValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=48D0F8F2BD94A54BBD8DFAE87A241F5F/Text/@EntryValue">System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/@KeyIndexDefined">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Applicability/=Live/@EntryIndexedValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Categories/=Modeling/@EntryIndexedValue">Modeling</s:String>
 	
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Description/@EntryValue">Singleton Entity Class Implementation</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Field/=EntityName/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Field/=EntityName/Expression/@EntryValue">context()</s:String>
-	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Field/=EntityName/Order/@EntryValue">1</s:Int64>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Field/=TypeIdentity/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Field/=TypeIdentity/Expression/@EntryValue">guid()</s:String>
-	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Field/=TypeIdentity/Order/@EntryValue">0</s:Int64>
 	
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Reformat/@EntryValue">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Scope/=C3001E7C0DA78E4487072B7E050D86C5/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Scope/=C3001E7C0DA78E4487072B7E050D86C5/CustomProperties/=minimumLanguageVersion/@EntryIndexedValue">5.0</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Scope/=C3001E7C0DA78E4487072B7E050D86C5/Type/@EntryValue">InCSharpFile</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Shortcut/@EntryValue">singletonEntity</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/ShortenQualifiedReferences/@EntryValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=4C4F8ECCC7ED4244844C6FF260429A18/Text/@EntryValue">[System.SerializableAttribute]&#xD;
-[Microsoft.Commerce.Management.TypeIdentityAttribute("$TypeIdentity$")]&#xD;
-[System.ComponentModel.TypeConverterAttribute(typeof(Microsoft.Commerce.Management.PrimaryKeyTypeConverter))]&#xD;
-public sealed class $EntityName$ : System.Runtime.Serialization.IObjectReference, Microsoft.Commerce.Management.Serializer.ICachingKeyContainer&#xD;
-{&#xD;
-    private static readonly $EntityName$ instance = new $EntityName$();&#xD;
-&#xD;
-    [System.NonSerializedAttribute]&#xD;
-    private byte[] keyBytes;&#xD;
-&#xD;
-    [System.NonSerializedAttribute]&#xD;
-    private string keyString;&#xD;
-&#xD;
-    private $EntityName$()&#xD;
-    {&#xD;
-    }&#xD;
-&#xD;
-    public static $EntityName$ Instance&#xD;
-    {&#xD;
-        get { return instance; }&#xD;
-    }&#xD;
-&#xD;
-    /// &lt;summary&gt;Gets the URL-safe globally-unique string key for this object.&lt;/summary&gt;&#xD;
-    public string Key&#xD;
-    {&#xD;
-        get { return Microsoft.Commerce.Management.Serializer.ToKeyString(this); }&#xD;
-    }&#xD;
-&#xD;
-    byte[] Microsoft.Commerce.Management.Serializer.ICachingKeyContainer.KeyBytes&#xD;
-    {&#xD;
-        get { return this.keyBytes; }&#xD;
-        set { this.keyBytes = value; }&#xD;
-    }&#xD;
-&#xD;
-    string Microsoft.Commerce.Management.Serializer.ICachingKeyContainer.KeyString&#xD;
-    {&#xD;
-        get { return this.keyString; }&#xD;
-        set { this.keyString = value; }&#xD;
-    }&#xD;
-&#xD;
-    /// &lt;summary&gt;Determines whether the specified &lt;paramref name="obj"/&gt; is a &lt;see cref="$EntityName$"/&gt;.&lt;/summary&gt;&#xD;
-    /// &lt;param name="obj"&gt;The object to compare with the singleton &lt;see cref="$EntityName$"/&gt;.&lt;/param&gt;&#xD;
-    /// &lt;returns&gt;&#xD;
-    ///  &lt;c&gt;true&lt;/c&gt; if the specified &lt;paramref name="obj"/&gt; is a &lt;see cref="$EntityName$"/&gt;; otherwise, &lt;c&gt;false&lt;/c&gt;.&#xD;
-    /// &lt;/returns&gt;&#xD;
-    public override bool Equals(object obj)&#xD;
-    {&#xD;
-        if (ReferenceEquals(null, obj))&#xD;
-        {&#xD;
-            return false;&#xD;
-        }&#xD;
-&#xD;
-        if (ReferenceEquals(this, obj))&#xD;
-        {&#xD;
-            return true;&#xD;
-        }&#xD;
-&#xD;
-        if (obj.GetType() != this.GetType())&#xD;
-        {&#xD;
-            return false;&#xD;
-        }&#xD;
-&#xD;
-        // Since this is a singleton, all instances of this type are equal.&#xD;
-        return true;&#xD;
-    }&#xD;
-&#xD;
-    /// &lt;summary&gt;Serves as a hash function for a particular type.&lt;/summary&gt;&#xD;
-    /// &lt;returns&gt;The hash code for the singleton &lt;see cref="$EntityName$"/&gt; instance.&lt;/returns&gt;&#xD;
-    public override int GetHashCode()&#xD;
-    {&#xD;
-        return typeof($EntityName$).GetHashCode();&#xD;
-    }&#xD;
-&#xD;
-    /// &lt;summary&gt;&#xD;
-    ///  Returns the real object that should be deserialized, rather than the object that the serialized&#xD;
-    ///  stream specifies.&#xD;
-    /// &lt;/summary&gt;&#xD;
-    /// &lt;param name="context"&gt;&#xD;
-    ///  The &lt;see cref="System.Runtime.Serialization.StreamingContext"/&gt; from which the current object is deserialized.&#xD;
-    /// &lt;/param&gt;&#xD;
-    /// &lt;returns&gt;Returns the actual object that is put into the graph.&lt;/returns&gt;&#xD;
-    object System.Runtime.Serialization.IObjectReference.GetRealObject(System.Runtime.Serialization.StreamingContext context)&#xD;
-    {&#xD;
-        return Instance;&#xD;
-    }&#xD;
-}&#xD;
-</s:String>
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 
 
 
@@ -1047,21 +955,21 @@ public sealed class $EntityName$ : System.Runtime.Serialization.IObjectReference
 
 
 
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/@KeyIndexDefined">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Applicability/=Live/@EntryIndexedValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Categories/=Contracts/@EntryIndexedValue">Contracts</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Description/@EntryValue">Ensure that an argument isn't null.</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Field/=arg/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Field/=arg/Expression/@EntryValue">parameterOfType("System.Object")</s:String>
+	
+	
+	
+	
+	
+	
 
-	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Field/=arg/Order/@EntryValue">0</s:Int64>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Reformat/@EntryValue">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Scope/=2C285F182AC98D44B0B4F29D4D2149EC/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Scope/=2C285F182AC98D44B0B4F29D4D2149EC/CustomProperties/=minimumLanguageVersion/@EntryIndexedValue">2.0</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Scope/=2C285F182AC98D44B0B4F29D4D2149EC/Type/@EntryValue">InCSharpStatement</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Shortcut/@EntryValue">eann</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/ShortenQualifiedReferences/@EntryValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=5DDF20E14E1E144B95D0F16FB47613A7/Text/@EntryValue">Microsoft.Commerce.Contracts.Ensure.ArgumentNotNull($arg$, nameof($arg$));$END$</s:String>
+	
+	
+	
+	
+	
+	
+	
+	
 	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=C96A3A706E1A584D89C35EFA457BBBE9/@KeyIndexDefined">True</s:Boolean>
 	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=C96A3A706E1A584D89C35EFA457BBBE9/Applicability/=Surround/@EntryIndexedValue">True</s:Boolean>
 	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=C96A3A706E1A584D89C35EFA457BBBE9/Categories/=Documentation/@EntryIndexedValue">Documentation</s:String>
@@ -1081,44 +989,44 @@ public sealed class $EntityName$ : System.Runtime.Serialization.IObjectReference
 	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=D0CDCD3597365644B4EA12E60042EFE2/ShortenQualifiedReferences/@EntryValue">True</s:Boolean>
 	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=D0CDCD3597365644B4EA12E60042EFE2/Text/@EntryValue">&lt;see cref="$SELECTION$"/&gt;</s:String>
 	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=D8FBD7D188BBCE4ABB40D540E00A273B/Text/@EntryValue"></s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/@KeyIndexDefined">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Applicability/=Live/@EntryIndexedValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Categories/=Contracts/@EntryIndexedValue">Contracts</s:String>
+	
+	
+	
 
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Description/@EntryValue">Ensure that a string argument isn't null or empty.</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Field/=arg/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Field/=arg/Expression/@EntryValue">parameterOfType("System.Collections.IEnumerable")</s:String>
-	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Field/=arg/Order/@EntryValue">0</s:Int64>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Reformat/@EntryValue">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Scope/=2C285F182AC98D44B0B4F29D4D2149EC/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Scope/=2C285F182AC98D44B0B4F29D4D2149EC/CustomProperties/=minimumLanguageVersion/@EntryIndexedValue">2.0</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Scope/=2C285F182AC98D44B0B4F29D4D2149EC/Type/@EntryValue">InCSharpStatement</s:String>
+	
+	
+	
+	
+	
+	
+	
+	
 
 
 
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Shortcut/@EntryValue">eane</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/ShortenQualifiedReferences/@EntryValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E0CD7C8D0FDFCB48ACC764B6F3F10EDE/Text/@EntryValue">Microsoft.Commerce.Contracts.Ensure.ArgumentNotEmpty($arg$, nameof($arg$));$END$</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/@KeyIndexDefined">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Applicability/=Live/@EntryIndexedValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Categories/=Modeling/@EntryIndexedValue">Modeling</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Description/@EntryValue">ImmutableObject Attribute</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Reformat/@EntryValue">True</s:Boolean>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Scope/=558F05AA0DE96347816FF785232CFB2A/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Scope/=558F05AA0DE96347816FF785232CFB2A/CustomProperties/=minimumLanguageVersion/@EntryIndexedValue">2.0</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Scope/=558F05AA0DE96347816FF785232CFB2A/Type/@EntryValue">InCSharpTypeAndNamespace</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Scope/=C3001E7C0DA78E4487072B7E050D86C5/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Scope/=C3001E7C0DA78E4487072B7E050D86C5/CustomProperties/=minimumLanguageVersion/@EntryIndexedValue">2.0</s:String>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Scope/=C3001E7C0DA78E4487072B7E050D86C5/Type/@EntryValue">InCSharpFile</s:String>
 	
 	
 	
 	
 	
 	
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Shortcut/@EntryValue">ioa</s:String>
-	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/ShortenQualifiedReferences/@EntryValue">True</s:Boolean>
-	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=E265A9D7776E8346844CEA903B963342/Text/@EntryValue">[System.ComponentModel.ImmutableObject(true)]</s:String>
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	<s:Boolean x:Key="/Default/PatternsAndTemplates/StructuralSearch/Pattern/=1EE3381D7F4253479D6998DFB2C87A3E/@KeyIndexDefined">False</s:Boolean>
 	<s:Boolean x:Key="/Default/PatternsAndTemplates/StructuralSearch/Pattern/=6169DDE9907D5D47A9CBE2B90C4D3806/@KeyIndexDefined">True</s:Boolean>
 	<s:String x:Key="/Default/PatternsAndTemplates/StructuralSearch/Pattern/=6169DDE9907D5D47A9CBE2B90C4D3806/Comment/@EntryValue">The index accessor will concatinate all values together into a single string.  Use the GetSingle extension method to throw if multiple values are not expected.</s:String>
