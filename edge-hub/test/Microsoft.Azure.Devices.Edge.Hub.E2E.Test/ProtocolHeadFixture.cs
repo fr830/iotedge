@@ -60,7 +60,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.E2E.Test
 
             async Task StartProtocolHead()
             {
-                string certificateValue = await SecretsHelper.GetSecret("IotHubMqttHeadCert2");
+                string certificateValue = await SecretsHelper.GetSecret("IotHubMqttHeadCert");
                 byte[] cert = Convert.FromBase64String(certificateValue);
                 var certificate = new X509Certificate2(cert);
 
