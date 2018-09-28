@@ -439,7 +439,7 @@ fn start_api<HC, K, F, C>(
     root_key: K,
     shutdown_signal: F,
     crypto: &C,
-    tokio_runtime: tokio::runtime::Runtime,
+    mut tokio_runtime: tokio::runtime::Runtime,
 ) -> Result<(), Error>
 where
     F: Future<Item = (), Error = ()> + Send + 'static,
@@ -501,7 +501,7 @@ where
                 Err(())
             }
         });
-    tokio_runtime.block_on_all(shutdown.select(services).then(|result| match result {
+    tokio_runtime.block_on(shutdown.select(services).then(|result| match result {
         Ok(((), _)) => Ok(()),
         Err(((), _)) => Err(io::Error::new(io::ErrorKind::Other, "an error occurred")),
     }))?;
